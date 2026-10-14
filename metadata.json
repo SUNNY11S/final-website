@@ -1,0 +1,8 @@
+{
+  "name": "Green Page BD",
+  "description": "Premium, affordable indoor plant bundles and stylish stand sets delivered to your home in Bangladesh.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
