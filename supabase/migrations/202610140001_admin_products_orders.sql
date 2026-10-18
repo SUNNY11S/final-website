@@ -47,7 +47,8 @@ drop policy if exists "admins can read own admin record" on public.admin_users;
 create policy "admins can read own admin record" on public.admin_users for select to authenticated using (user_id = (select auth.uid()));
 
 drop policy if exists "public can read active products" on public.products;
-create policy "public can read active products" on public.products for select to anon, authenticated using (is_active = true or (select public.is_admin()));
+drop policy if exists "public can read product catalog" on public.products;
+create policy "public can read product catalog" on public.products for select to anon, authenticated using (true);
 drop policy if exists "admins can insert products" on public.products;
 create policy "admins can insert products" on public.products for insert to authenticated with check ((select public.is_admin()));
 drop policy if exists "admins can update products" on public.products;
