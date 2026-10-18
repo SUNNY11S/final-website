@@ -29,20 +29,20 @@ export function App() {
 
   useEffect(() => {
     if (!supabase) return;
-    supabase.from('products').select('*').eq('is_active', true).then(({ data }) => {
+    supabase.from('products').select('*').then(({ data }) => {
       if (data) setDbProducts(data as ProductRow[]);
     });
   }, []);
 
   const catalogProducts = useMemo(() => {
-    const mapped = dbProducts.map((p): Product => ({
+    const mapped = dbProducts.filter((p) => p.is_active).map((p): Product => ({
       id: p.id, name: p.name, category: p.category, categoryLabel: p.category_label,
       price: p.price, originalPrice: p.original_price ?? undefined, badge: p.badge ?? undefined,
       shortDesc: p.short_desc, features: p.features ?? [], plantsIncluded: p.plants_included ?? [],
       careLevel: p.care_level, lightRequirement: p.light_requirement, watering: p.watering,
       image: p.image_url, idealFor: p.ideal_for
     }));
-    if (!mapped.length) return PRODUCTS;
+    if (!dbProducts.length) return PRODUCTS;
     const overrides = new Map(mapped.map((p) => [p.id, p]));
     const merged = PRODUCTS.map((p) => overrides.get(p.id) ?? p);
     const existing = new Set(PRODUCTS.map((p) => p.id));
