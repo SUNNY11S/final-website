@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Product, PRODUCTS } from '../data/products';
 import { X, CheckCircle, Phone, MessageCircle } from 'lucide-react';
+import { isSupabaseConfigured, supabase } from '../lib/supabase';
 
 export interface CartItem {
   product: Product;
@@ -12,6 +13,7 @@ interface OrderModalProps {
   onClose: () => void;
   preselectedProduct?: Product | null;
   cartItems?: CartItem[];
+  products?: Product[];
   onOrderSuccess?: () => void;
 }
 
@@ -20,6 +22,7 @@ export const OrderModal: React.FC<OrderModalProps> = ({
   onClose,
   preselectedProduct,
   cartItems = [],
+  products = PRODUCTS,
   onOrderSuccess
 }) => {
   const [items, setItems] = useState<CartItem[]>([]);
@@ -29,6 +32,7 @@ export const OrderModal: React.FC<OrderModalProps> = ({
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'cod' | 'bkash'>('cod');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [completedOrder, setCompletedOrder] = useState<{
     orderId: string;
     total: number;
@@ -46,9 +50,9 @@ export const OrderModal: React.FC<OrderModalProps> = ({
     } else if (cartItems.length > 0) {
       setItems([...cartItems]);
     } else {
-      setItems([{ product: PRODUCTS[0], quantity: 1 }]);
+      setItems(products.length ? [{ product: products[0], quantity: 1 }] : []);
     }
-  }, [preselectedProduct, cartItems, isOpen]);
+  }, [preselectedProduct, cartItems, isOpen, products]);
 
   if (!isOpen) return null;
 
@@ -71,7 +75,7 @@ export const OrderModal: React.FC<OrderModalProps> = ({
   };
 
   const addItemToOrder = (productId: string) => {
-    const prod = PRODUCTS.find((p) => p.id === productId);
+    const prod = products.find((p) => p.id === productId);
     if (!prod) return;
     setItems((prev) => {
       const existing = prev.find((item) => item.product.id === productId);
@@ -84,34 +88,61 @@ export const OrderModal: React.FC<OrderModalProps> = ({
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitError(null);
     if (!customerName.trim() || !customerPhone.trim() || !deliveryAddress.trim()) {
-      alert('Please fill in your Name, Phone Number, and Delivery Address.');
+      setSubmitError('Please fill in your name, phone number, and delivery address.');
       return;
     }
-
     if (items.length === 0) {
-      alert('Please select at least one package to order.');
+      setSubmitError('Please select at least one package to order.');
+      return;
+    }
+    if (!isSupabaseConfigured || !supabase) {
+      setSubmitError('Online order saving is not configured yet. Please contact the store or try again later.');
       return;
     }
 
     setIsSubmitting(true);
-    setTimeout(() => {
-      const orderId = `GP-${Math.floor(10000 + Math.random() * 90000)}`;
-      setCompletedOrder({
-        orderId,
-        total,
-        items,
-        name: customerName,
-        phone: customerPhone,
-        address: deliveryAddress,
-        zone: deliveryZone === 'dhaka' ? 'Inside Dhaka City' : 'Outside Dhaka (Nationwide)',
-        payment: paymentMethod === 'cod' ? 'Cash on Delivery (COD)' : 'bKash Mobile Payment'
-      });
-      setIsSubmitting(false);
-      if (onOrderSuccess) onOrderSuccess();
-    }, 500);
+    const orderId = `GP-${Date.now().toString().slice(-7)}`;
+    const deliveryFeeValue = deliveryZone === 'dhaka' ? 80 : 130;
+    const orderItems = items.map((item) => ({
+      id: item.product.id,
+      name: item.product.name,
+      price: item.product.price,
+      quantity: item.quantity
+    }));
+    const { error } = await supabase.from('orders').insert({
+      order_code: orderId,
+      customer_name: customerName.trim(),
+      customer_phone: customerPhone.trim(),
+      delivery_address: deliveryAddress.trim(),
+      delivery_zone: deliveryZone,
+      payment_method: paymentMethod,
+      items: orderItems,
+      subtotal,
+      delivery_fee: deliveryFeeValue,
+      total: subtotal + deliveryFeeValue,
+      status: 'pending'
+    });
+    setIsSubmitting(false);
+    if (error) {
+      setSubmitError('We could not save your order. Please try again. (' + error.message + ')');
+      return;
+    }
+
+    setCompletedOrder({
+      orderId,
+      total: subtotal + deliveryFeeValue,
+      items,
+      name: customerName.trim(),
+      phone: customerPhone.trim(),
+      address: deliveryAddress.trim(),
+      zone: deliveryZone === 'dhaka' ? 'Inside Dhaka City' : 'Outside Dhaka (Nationwide)',
+      payment: paymentMethod === 'cod' ? 'Cash on Delivery (COD)' : 'bKash Mobile Payment'
+    });
+    if (onOrderSuccess) onOrderSuccess();
   };
 
   const getWhatsAppOrderLink = () => {
@@ -245,6 +276,7 @@ Please confirm my order and inform delivery schedule. Thank you!`;
           ) : (
             /* Active Form State */
             <form onSubmit={handleSubmit} className="space-y-5">
+              {submitError && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-semibold text-red-700">{submitError}</div>}
               {/* Selected Items */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between text-xs font-bold text-stone-700 uppercase tracking-wider">
@@ -258,7 +290,7 @@ Please confirm my order and inform delivery schedule. Thank you!`;
                   <div className="p-4 bg-stone-50 border border-stone-200 rounded-2xl text-center text-xs text-stone-500">
                     Your order is empty. Please select a package below:
                     <div className="mt-2 flex flex-wrap gap-1.5 justify-center">
-                      {PRODUCTS.map((p) => (
+                      {products.map((p) => (
                         <button
                           key={p.id}
                           type="button"
