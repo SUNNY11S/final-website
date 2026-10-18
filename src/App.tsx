@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Header } from './components/Header';
 import { Hero } from './components/Hero';
 import { ProductGrid } from './components/ProductGrid';
@@ -14,9 +14,11 @@ import { MobileQuickBar } from './components/MobileQuickBar';
 import { OrderModal, CartItem } from './components/OrderModal';
 import { QuickViewModal } from './components/QuickViewModal';
 import { CartDrawer } from './components/CartDrawer';
-import { Product } from './data/products';
+import { Product, PRODUCTS } from './data/products';
+import { supabase, type ProductRow } from './lib/supabase';
 
 export function App() {
+  const [dbProducts, setDbProducts] = useState<ProductRow[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
@@ -24,6 +26,28 @@ export function App() {
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
   const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
   const [orderNotification, setOrderNotification] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!supabase) return;
+    supabase.from('products').select('*').eq('is_active', true).then(({ data }) => {
+      if (data) setDbProducts(data as ProductRow[]);
+    });
+  }, []);
+
+  const catalogProducts = useMemo(() => {
+    const mapped = dbProducts.map((p): Product => ({
+      id: p.id, name: p.name, category: p.category, categoryLabel: p.category_label,
+      price: p.price, originalPrice: p.original_price ?? undefined, badge: p.badge ?? undefined,
+      shortDesc: p.short_desc, features: p.features ?? [], plantsIncluded: p.plants_included ?? [],
+      careLevel: p.care_level, lightRequirement: p.light_requirement, watering: p.watering,
+      image: p.image_url, idealFor: p.ideal_for
+    }));
+    if (!mapped.length) return PRODUCTS;
+    const overrides = new Map(mapped.map((p) => [p.id, p]));
+    const merged = PRODUCTS.map((p) => overrides.get(p.id) ?? p);
+    const existing = new Set(PRODUCTS.map((p) => p.id));
+    return [...merged.filter((p) => !dbProducts.some((row) => row.id === p.id && !row.is_active)), ...mapped.filter((p) => !existing.has(p.id))];
+  }, [dbProducts]);
 
   const cartTotalItems = cart.reduce((acc, item) => acc + item.quantity, 0);
 
@@ -109,6 +133,7 @@ export function App() {
 
         {/* 2. Product Section (8–10 plant bundles & metal stand sets) */}
         <ProductGrid
+          products={catalogProducts}
           onOrderNow={handleOrderNow}
           onAddToCart={handleAddToCart}
           onQuickView={handleQuickView}
@@ -160,6 +185,7 @@ export function App() {
         isOpen={isOrderModalOpen}
         onClose={() => setIsOrderModalOpen(false)}
         preselectedProduct={preselectedProduct}
+        products={catalogProducts}
         cartItems={cart}
         onOrderSuccess={() => {
           setCart([]);
