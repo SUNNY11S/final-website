@@ -13,6 +13,7 @@ interface OrderModalProps {
   onClose: () => void;
   preselectedProduct?: Product | null;
   cartItems?: CartItem[];
+  products?: Product[];
   onOrderSuccess?: () => void;
 }
 
@@ -21,6 +22,7 @@ export const OrderModal: React.FC<OrderModalProps> = ({
   onClose,
   preselectedProduct,
   cartItems = [],
+  products = PRODUCTS,
   onOrderSuccess
 }) => {
   const [items, setItems] = useState<CartItem[]>([]);
@@ -48,9 +50,9 @@ export const OrderModal: React.FC<OrderModalProps> = ({
     } else if (cartItems.length > 0) {
       setItems([...cartItems]);
     } else {
-      setItems([{ product: PRODUCTS[0], quantity: 1 }]);
+      setItems(products.length ? [{ product: products[0], quantity: 1 }] : []);
     }
-  }, [preselectedProduct, cartItems, isOpen]);
+  }, [preselectedProduct, cartItems, isOpen, products]);
 
   if (!isOpen) return null;
 
@@ -73,7 +75,7 @@ export const OrderModal: React.FC<OrderModalProps> = ({
   };
 
   const addItemToOrder = (productId: string) => {
-    const prod = PRODUCTS.find((p) => p.id === productId);
+    const prod = products.find((p) => p.id === productId);
     if (!prod) return;
     setItems((prev) => {
       const existing = prev.find((item) => item.product.id === productId);
@@ -288,7 +290,7 @@ Please confirm my order and inform delivery schedule. Thank you!`;
                   <div className="p-4 bg-stone-50 border border-stone-200 rounded-2xl text-center text-xs text-stone-500">
                     Your order is empty. Please select a package below:
                     <div className="mt-2 flex flex-wrap gap-1.5 justify-center">
-                      {PRODUCTS.map((p) => (
+                      {products.map((p) => (
                         <button
                           key={p.id}
                           type="button"
