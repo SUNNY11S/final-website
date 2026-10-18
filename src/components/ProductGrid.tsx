@@ -4,6 +4,7 @@ import { ProductCard } from './ProductCard';
 import { ShieldCheck, Truck, Sparkles } from 'lucide-react';
 
 interface ProductGridProps {
+  products?: Product[];
   onOrderNow: (product: Product) => void;
   onAddToCart: (product: Product) => void;
   onQuickView: (product: Product) => void;
@@ -13,15 +14,16 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
   onOrderNow,
   onAddToCart,
   onQuickView,
+  products = PRODUCTS,
 }) => {
   const [activeTab, setActiveTab] = useState<'all' | 'indoor-packages' | 'stand-packages'>('all');
 
   const filteredProducts = activeTab === 'all'
-    ? PRODUCTS
-    : PRODUCTS.filter((p) => p.category === activeTab);
+    ? products
+    : products.filter((p) => p.category === activeTab);
 
-  const indoorPackages = PRODUCTS.filter((p) => p.category === 'indoor-packages');
-  const standPackages = PRODUCTS.filter((p) => p.category === 'stand-packages');
+  const indoorPackages = products.filter((p) => p.category === 'indoor-packages');
+  const standPackages = products.filter((p) => p.category === 'stand-packages');
 
   return (
     <section id="packages" className="py-14 sm:py-22 bg-[#FAF9F5] border-t border-stone-200/70">
@@ -50,7 +52,7 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
                   : 'text-stone-600 hover:text-stone-900'
               }`}
             >
-              All Packages ({PRODUCTS.length})
+              All Packages ({products.length})
             </button>
             <button
               onClick={() => setActiveTab('indoor-packages')}
