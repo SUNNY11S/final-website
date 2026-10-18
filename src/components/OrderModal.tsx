@@ -30,6 +30,7 @@ export const OrderModal: React.FC<OrderModalProps> = ({
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'cod' | 'bkash'>('cod');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [completedOrder, setCompletedOrder] = useState<{
     orderId: string;
     total: number;
@@ -84,8 +85,6 @@ export const OrderModal: React.FC<OrderModalProps> = ({
       return [...prev, { product: prod, quantity: 1 }];
     });
   };
-
-  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
